@@ -276,18 +276,19 @@ New title:
 
       <ActionPanel.Section>
         <Action.CopyToClipboard
-          title="Copy Formatted To-Do URL"
-          content={{
-            html: `<a href="things:///show?id=${todo.id}" title="${todo.name}">${todo.name}</a>`,
-            text: todo.name,
-          }}
-          shortcut={Keyboard.Shortcut.Common.CopyPath}
-        />
-        <Action.CopyToClipboard title="Copy To-Do URL" content={`things:///show?id=${todo.id}`} />
-        <Action.CopyToClipboard
           title="Copy To-Do Title"
           content={todo.name}
           shortcut={Keyboard.Shortcut.Common.CopyName}
+        />
+        <Action.CopyToClipboard
+          title="Copy To-Do URL"
+          content={`things:///show?id=${todo.id}`}
+          shortcut={Keyboard.Shortcut.Common.CopyPath}
+        />
+        <Action.CopyToClipboard
+          title="Copy To-Do Markdown Link"
+          content={`[${todo.name}](things:///show?id=${todo.id})`}
+          shortcut={{ modifiers: ['cmd'], key: '.' }}
         />
         <Action.CopyToClipboard title="Copy To-Do Notes" content={todo.notes} />
       </ActionPanel.Section>

@@ -25,7 +25,7 @@ export default function Console() {
       {sortedServices?.map((service) => (
         <List.Item
           key={service.id}
-          title={service.title}
+          title={service.match}
           subtitle={service.subtitle}
           icon={{ source: service.icon.path, mask: Image.Mask.RoundedRectangle }}
           keywords={service.match.split(" ")}

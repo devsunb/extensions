@@ -211,33 +211,39 @@ export default function IssueActions({
 
       <ActionPanel.Section>
         <Action.CopyToClipboard
-          title="Copy Issue Key"
-          content={issue.key}
+          title="Copy Issue Markdown Link"
+          content={`[\\[${issue.key}\\] ${issue.fields.summary}](${issueUrl})`}
           shortcut={{ modifiers: ["cmd"], key: "." }}
         />
 
         <Action.CopyToClipboard
-          title="Copy Issue URL"
-          content={issueUrl}
+          title="Copy Issue Key and Title"
+          content={`[${issue.key}] ${issue.fields.summary}`}
           shortcut={{ modifiers: ["cmd", "shift"], key: "," }}
+        />
+
+        <Action.CopyToClipboard
+          title="Copy Issue Key"
+          content={issue.key}
+          shortcut={{ modifiers: ["cmd", "ctrl"], key: "," }}
         />
 
         <Action.CopyToClipboard
           title="Copy Issue Title"
           content={issue.fields.summary}
-          shortcut={{ modifiers: ["ctrl", "shift"], key: "," }}
+          shortcut={{ modifiers: ["cmd", "ctrl", "shift"], key: "," }}
         />
 
         <Action.CopyToClipboard
-          title="Copy Issue Key and Title"
-          content={`${issue.key} ${issue.fields.summary}`}
-          shortcut={{ modifiers: ["cmd", "opt", "shift"], key: "." }}
+          title="Copy Issue URL"
+          content={issueUrl}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "." }}
         />
 
         <Action.CopyToClipboard
           title="Copy Git Branch Name"
           content={`${issue.key}-${slugify(issue.fields.summary)}`}
-          shortcut={{ modifiers: ["cmd", "shift"], key: "." }}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "b" }}
         />
       </ActionPanel.Section>
 
