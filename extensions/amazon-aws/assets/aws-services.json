@@ -289,7 +289,7 @@
       "title": "CloudFront",
       "subtitle": "Global Content Delivery Network",
       "match": "cfr CloudFront",
-      "arg": "/cloudfront/home",
+      "arg": "/cloudfront/v4/home",
       "autocomplete": "CloudFront",
       "icon": {
         "path": "./aws-icons/cfr.png"
@@ -682,7 +682,7 @@
       "title": "Elastic Container Service",
       "subtitle": "Highly secure, reliable, and scalable way to run containers",
       "match": "ecs Elastic Container Service",
-      "arg": "/ecs/home",
+      "arg": "/ecs/v2/clusters",
       "autocomplete": "Elastic Container Service",
       "icon": {
         "path": "./aws-icons/ecs.png"
@@ -923,7 +923,7 @@
       "title": "IAM",
       "subtitle": "Manage access to AWS resources",
       "match": "iam IAM",
-      "arg": "/iam/home",
+      "arg": "/iam/home?region=us-east-1#/home",
       "autocomplete": "IAM",
       "icon": {
         "path": "./aws-icons/iam.png"
@@ -1109,7 +1109,7 @@
       "title": "Lambda",
       "subtitle": "Run Code without Thinking about Servers",
       "match": "lam Lambda",
-      "arg": "/lambda/home",
+      "arg": "/lambda/home?region=ap-northeast-2#/functions",
       "autocomplete": "Lambda",
       "icon": {
         "path": "./aws-icons/lam.png"
@@ -1439,7 +1439,7 @@
       "title": "Route 53",
       "subtitle": "Scalable DNS and Domain Name Registration",
       "match": "r53 Route 53",
-      "arg": "/route53/home",
+      "arg": "/route53/v2/hostedzones",
       "autocomplete": "Route 53",
       "icon": {
         "path": "./aws-icons/r53.png"
@@ -1724,7 +1724,7 @@
       "title": "VPC",
       "subtitle": "Isolated Cloud Resources",
       "match": "vpc VPC",
-      "arg": "/vpc/home",
+      "arg": "/vpcconsole/home",
       "autocomplete": "VPC",
       "icon": {
         "path": "./aws-icons/vpc.png"
@@ -1735,7 +1735,7 @@
       "title": "WAF & Shield",
       "subtitle": "Protects Against DDoS Attacks and Malicious Web Traffic",
       "match": "waf WAF & Shield",
-      "arg": "/wafv2/homev2/home",
+      "arg": "/wafv2/homev2/web-acls?region=global",
       "autocomplete": "WAF & Shield",
       "icon": {
         "path": "./aws-icons/waf.png"
@@ -2073,7 +2073,7 @@
       "title": "Elastic Container Registry",
       "subtitle": "Fully-managed Docker container registry : Share and deploy container software, publicly or privately",
       "match": "ecr Elastic Container Registry",
-      "arg": "/ecr/home",
+      "arg": "/ecr/private-registry/repositories",
       "autocomplete": "Elastic Container Registry",
       "icon": {
         "path": "./aws-icons/ecr.png"

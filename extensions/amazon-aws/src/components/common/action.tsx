@@ -7,7 +7,7 @@ export class AwsAction {
       <Action.OpenInBrowser
         key="openConsoleLink"
         title="Open in Browser"
-        url={createSsoLoginUri(url)}
+        url={url}
         onOpen={() => onAction?.()}
       />
       <Action.CopyToClipboard
