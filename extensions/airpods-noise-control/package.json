@@ -38,23 +38,23 @@
           "title": "Option One 🔵",
           "description": "First option to switch between.",
           "type": "dropdown",
-          "default": "Noise Cancellation",
+          "default": "주변음 허용",
           "data": [
             {
-              "title": "Off",
-              "value": "Off"
+              "title": "끔",
+              "value": "끔"
             },
             {
-              "title": "Transparency",
-              "value": "Transparency"
+              "title": "주변음 허용",
+              "value": "주변음 허용"
             },
             {
-              "title": "Adaptive (only if you have)",
-              "value": "Adaptive"
+              "title": "적응형",
+              "value": "적응형"
             },
             {
-              "title": "Noise Cancellation",
-              "value": "Noise Cancellation"
+              "title": "노이즈 캔슬링",
+              "value": "노이즈 캔슬링"
             }
           ],
           "required": true
@@ -64,23 +64,23 @@
           "title": "Option Two 🟢",
           "description": "Second option to switch between.",
           "type": "dropdown",
-          "default": "Transparency",
+          "default": "노이즈 캔슬링",
           "data": [
             {
-              "title": "Off",
-              "value": "Off"
+              "title": "끔",
+              "value": "끔"
             },
             {
-              "title": "Transparency",
-              "value": "Transparency"
+              "title": "주변음 허용",
+              "value": "주변음 허용"
             },
             {
-              "title": "Adaptive (only if you have)",
-              "value": "Adaptive"
+              "title": "적응형",
+              "value": "적응형"
             },
             {
-              "title": "Noise Cancellation",
-              "value": "Noise Cancellation"
+              "title": "노이즈 캔슬링",
+              "value": "노이즈 캔슬링"
             }
           ],
           "required": true
@@ -118,43 +118,6 @@
           "required": true
         }
       ]
-    }
-  ],
-  "preferences": [
-    {
-      "name": "airpodsIndex",
-      "title": "AirPods List Position",
-      "description": "When your AirPods are connected, at which position are they listed in your Sound menu? (1, 2, 3, etc.)",
-      "type": "textfield",
-      "required": true,
-      "placeholder": "Position of your AirPods in the Sound menu (1, 2, 3, ...)"
-    },
-    {
-      "name": "airpodsType",
-      "title": "AirPods Type",
-      "description": "Select your AirPods model. This affects the menu layout for noise control options.",
-      "type": "dropdown",
-      "required": true,
-      "default": "pro",
-      "data": [
-        {
-          "title": "AirPods Pro",
-          "value": "pro"
-        },
-        {
-          "title": "AirPods Max",
-          "value": "max"
-        }
-      ]
-    },
-    {
-      "name": "soundLoc",
-      "title": "Sound Menu Localization",
-      "description": "What is the name of the Sound menu bar icon in your language/region?",
-      "type": "textfield",
-      "required": false,
-      "default": "Sound",
-      "placeholder": "Sound, Ton, ..."
     }
   ],
   "dependencies": {

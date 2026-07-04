@@ -1,69 +1,57 @@
 import { runAppleScript, showFailureToast } from "@raycast/utils";
 import { Prefs } from "./type";
 import { updateCommandMetadata } from "@raycast/api";
-import { isSequoiaOrLater } from "./utils";
 
 export async function execAirPodsMenu(
-  { airpodsIndex, airpodsType, soundLoc, optionOne, optionTwo }: Prefs,
+  { optionOne, optionTwo }: Prefs,
   toggleOption = "",
 ): Promise<string | null> {
-  const useControlCenter = isSequoiaOrLater();
-  const isAirPodsMax = airpodsType === "max";
-
-  // Script for macOS Sequoia and later (uses ControlCenter process)
-  const controlCenterScript = `
-set AirPodsIndex to ${airpodsIndex}
+  // On macOS Sequoia and later the Sound controls live inside the Control Center
+  // panel (there is no standalone Sound menu-bar item), so we open Control Center,
+  // drill into the volume detail view, and drive the checkboxes there. Elements are
+  // located by their stable AXIdentifier rather than by locale-dependent labels or
+  // fixed indices, so this keeps working regardless of language or how many other
+  // audio devices are currently listed.
+  //
+  // Every wait is a poll that proceeds the instant the UI is ready (instead of a
+  // fixed delay), so a single open/toggle/close cycle is as fast as Control Center
+  // allows. The final read waits until exactly one option in the target group is
+  // selected, which avoids acting on the brief unsettled state right after the
+  // detail view appears.
+  const script = `
 set ToggleOption to "${toggleOption}"
-set isAirPodsMax to ${isAirPodsMax}
 
--- Get option index for AirPods Max (has Off, Transparency, Noise Cancellation)
-on getMaxOptionIndex(Opt)
-	if Opt is equal to "Off" then
-		return 1
-	else if Opt is equal to "Transparency" then
+on getOptionIndex(Opt)
+	if Opt is equal to "주변음 허용" then
 		return 2
-	else if Opt is equal to "Noise Cancellation" then
+	else if Opt is equal to "적응형" then
 		return 3
+	else if Opt is equal to "노이즈 캔슬링" then
+		return 4
 	else
 		return 1
 	end if
-end getMaxOptionIndex
+end getOptionIndex
 
--- Get option index for AirPods Pro (has Transparency, Adaptive, Noise Cancellation)
-on getProOptionIndex(Opt)
-	if Opt is equal to "Transparency" then
-		return 1
-	else if Opt is equal to "Adaptive" then
-		return 2
-	else if Opt is equal to "Noise Cancellation" then
-		return 3
-	else
-		return 1
-	end if
-end getProOptionIndex
-
--- Calculate indices based on user preferences and AirPods type
+-- Offsets/groups are relative to the AirPods output-device checkbox:
+-- +1..+4 are the listening modes (끔/주변음 허용/적응형/노이즈 캔슬링),
+-- +8/+9 are Conversation Awareness (Off/On).
 if ToggleOption is "noise-control"
 	set OptionOne to "${optionOne}"
 	set OptionTwo to "${optionTwo}"
 
-	if isAirPodsMax then
-		-- Validate that Adaptive is not selected for AirPods Max
-		if OptionOne is equal to "Adaptive" or OptionTwo is equal to "Adaptive" then
-			return "adaptive-not-supported-on-max"
-		end if
-		set IndexOne to AirPodsIndex + getMaxOptionIndex(OptionOne)
-		set IndexTwo to AirPodsIndex + getMaxOptionIndex(OptionTwo)
-	else
-		set IndexOne to AirPodsIndex + getProOptionIndex(OptionOne)
-		set IndexTwo to AirPodsIndex + getProOptionIndex(OptionTwo)
-	end if
+	set OffsetOne to getOptionIndex(OptionOne)
+	set OffsetTwo to getOptionIndex(OptionTwo)
+	set GroupStart to 1
+	set GroupEnd to 4
 else
 	set OptionOne to "Off"
 	set OptionTwo to "On"
-	-- Conversation Awareness: Off at +4, On at +5 (Pro only)
-	set IndexOne to AirPodsIndex + 4
-	set IndexTwo to AirPodsIndex + 5
+
+	set OffsetOne to 8
+	set OffsetTwo to 9
+	set GroupStart to 8
+	set GroupEnd to 9
 end if
 
 tell application "System Events"
@@ -71,99 +59,111 @@ tell application "System Events"
 		try
 			set output to "🔴 No Change"
 
-			-- Find and click the Sound menu bar item
-			set soundMenu to missing value
-			set menuBarItems to menu bar items of menu bar 1
-
-			repeat with menuItem in menuBarItems
+			-- Assumes the Control Center panel is closed to begin with.
+			-- Open Control Center via its stable menu bar identifier
+			set ccItem to missing value
+			repeat with mbi in (menu bar items of menu bar 1)
 				try
-					if description of menuItem is "${soundLoc}" then
-						set soundMenu to menuItem
+					if (value of attribute "AXIdentifier" of mbi) is "com.apple.menuextra.controlcenter" then
+						set ccItem to mbi
 						exit repeat
 					end if
 				end try
 			end repeat
 
-			if soundMenu is missing value then
+			if ccItem is missing value then
 				return "sound-menu-not-found"
 			end if
 
-			click soundMenu
-			delay 0.15
+			click ccItem
 
-			-- Get entire contents of the first window and find scroll areas
-			set allElements to entire contents of window 1
-			set scrollArea to missing value
-
-			repeat with elem in allElements
-				try
-					if role of elem is "AXScrollArea" then
-						set scrollArea to elem
-						exit repeat
-					end if
-				end try
-			end repeat
-
-			if scrollArea is missing value then
-				key code 53 -- ESC
-				return "sound-menu-not-found"
-			end if
-
-			-- Get checkboxes from scroll area
-			set allCheckboxes to checkboxes of scrollArea
-			set cbCount to count of allCheckboxes
-
-			-- Check if AirPods checkbox exists and is selected
-			if AirPodsIndex > cbCount then
-				key code 53 -- ESC
-				return "airpods-not-connected"
-			end if
-
-			set airpodsCheckbox to checkbox AirPodsIndex of scrollArea
-			set airpodsSelected to value of airpodsCheckbox as boolean
-
-			if airpodsSelected is false then
-				key code 53 -- ESC
-				return "airpods-not-connected"
-			end if
-
-			-- Find and click the expand toggle (disclosure triangle) for the AirPods item
-			-- We need to find the disclosure triangle associated with the AirPods checkbox,
-			-- not just any disclosure triangle in the scroll area
-			set allElements to entire contents of scrollArea
-			set airpodsElementIndex to -1
-
-			-- Find the position of the AirPods checkbox in the element list
-			repeat with i from 1 to count of allElements
-				if item i of allElements is equal to airpodsCheckbox then
-					set airpodsElementIndex to i
-					exit repeat
-				end if
-			end repeat
-
-			-- Look for a disclosure triangle near the AirPods checkbox (within next few elements)
-			if airpodsElementIndex > 0 then
-				repeat with j from (airpodsElementIndex + 1) to (airpodsElementIndex + 3)
-					if j > (count of allElements) then exit repeat
-					try
-						set elem to item j of allElements
-						if role of elem is "AXDisclosureTriangle" then
-							set isExpanded to value of elem as boolean
-							if isExpanded is false then
-								click elem
-								delay 0.1
+			-- Wait for the volume module to appear
+			set volEl to missing value
+			repeat 200 times
+				if (exists window 1) then
+					repeat with e in (UI elements of group 1 of window 1)
+						try
+							if (value of attribute "AXIdentifier" of e) is "controlcenter-volume" then
+								set volEl to e
+								exit repeat
 							end if
-							exit repeat
-						end if
-					end try
-				end repeat
+						end try
+					end repeat
+				end if
+				if volEl is not missing value then exit repeat
+				delay 0.01
+			end repeat
+
+			if volEl is missing value then
+				if (exists window 1) then key code 53 -- ESC (only when the panel is open, so ESC never leaks to the frontmost app)
+				return "sound-menu-not-found"
 			end if
 
-			-- Re-get checkboxes after potential expansion
-			set allCheckboxes to checkboxes of scrollArea
+			-- Enter the Sound (volume) detail view via its "세부사항 보기" action
+			set volActions to every action of volEl
+			perform (item (count of volActions) of volActions)
+
+			-- Wait for the detail scroll area and the AirPods output-device checkbox
+			-- (all AirPods rows share the same AXIdentifier; the device row is first)
+			set scrollArea to missing value
+			set deviceIndex to 0
+			repeat 200 times
+				try
+					set scrollArea to scroll area 1 of group 1 of window 1
+					set allCheckboxes to checkboxes of scrollArea
+					set deviceIndex to 0
+					repeat with i from 1 to count of allCheckboxes
+						try
+							if ((value of attribute "AXIdentifier" of (item i of allCheckboxes)) as string) contains "AirPods" then
+								set deviceIndex to i
+								exit repeat
+							end if
+						end try
+					end repeat
+				end try
+				if deviceIndex > 0 then exit repeat
+				delay 0.01
+			end repeat
+
+			if deviceIndex is 0 then
+				if (exists window 1) then key code 53 -- ESC (only when the panel is open, so ESC never leaks to the frontmost app)
+				return "airpods-not-connected"
+			end if
+
+			-- Expand the AirPods row if it is collapsed so the mode checkboxes exist
+			repeat with e in (UI elements of scrollArea)
+				try
+					if (role of e) is "AXDisclosureTriangle" and ((value of attribute "AXIdentifier" of e) as string) contains "AirPods" then
+						if (value of e as integer) is 0 then click e
+						exit repeat
+					end if
+				end try
+			end repeat
+
+			set IndexOne to deviceIndex + OffsetOne
+			set IndexTwo to deviceIndex + OffsetTwo
+
+			-- Wait until the target group is present and settled (exactly one selected)
+			repeat 200 times
+				if (count of checkboxes of scrollArea) >= (deviceIndex + GroupEnd) then
+					set selectedCount to 0
+					repeat with k from GroupStart to GroupEnd
+						try
+							set selectedCount to selectedCount + (value of checkbox (deviceIndex + k) of scrollArea as integer)
+						end try
+					end repeat
+					if selectedCount is 1 then exit repeat
+				end if
+				delay 0.01
+			end repeat
+
+			if (count of checkboxes of scrollArea) < IndexTwo then
+				if (exists window 1) then key code 53 -- ESC (only when the panel is open, so ESC never leaks to the frontmost app)
+				return "airpods-not-connected"
+			end if
 
 			if ToggleOption is "noise-control" then
-				-- Toggle between user-configured options
+				-- Toggle between the two user-configured listening modes
 				set currentModeOne to value of checkbox IndexOne of scrollArea as boolean
 
 				if currentModeOne is true then
@@ -175,149 +175,29 @@ tell application "System Events"
 				end if
 			else
 				-- Conversation Awareness toggle
-				if isAirPodsMax then
-					key code 53 -- ESC
-					return "conversation-awareness-not-supported"
-				else
-					set isCAOff to value of checkbox IndexOne of scrollArea as boolean
+				set isCAOff to value of checkbox IndexOne of scrollArea as boolean
 
-					if isCAOff then
-						click checkbox IndexTwo of scrollArea
-						set output to "🟢 On"
-					else
-						click checkbox IndexOne of scrollArea
-						set output to "🔵 Off"
-					end if
+				if isCAOff then
+					click checkbox IndexTwo of scrollArea
+					set output to "🟢 On"
+				else
+					click checkbox IndexOne of scrollArea
+					set output to "🔵 Off"
 				end if
 			end if
 
-			key code 53 -- ESC
+			if (exists window 1) then key code 53 -- ESC (only when the panel is open, so ESC never leaks to the frontmost app)
 			return output
 
 		on error errMsg
 			try
-				key code 53 -- ESC
+				if (exists window 1) then key code 53 -- ESC (only when the panel is open, so ESC never leaks to the frontmost app)
 			end try
 			return "sound-menu-not-found"
 		end try
 	end tell
 end tell
   `;
-
-  // Legacy script for pre-Sequoia macOS (uses SystemUIServer)
-  const legacyScript = `
-set AirPodsIndex to ${airpodsIndex}
-set ToggleOption to "${toggleOption}"
-set isAirPodsMax to ${isAirPodsMax}
-
--- Get option index for AirPods Max (has Off, Transparency, Noise Cancellation)
-on getMaxOptionIndex(Opt)
-	if Opt is equal to "Off" then
-		return 1
-	else if Opt is equal to "Transparency" then
-		return 2
-	else if Opt is equal to "Noise Cancellation" then
-		return 3
-	else
-		return 1
-	end if
-end getMaxOptionIndex
-
--- Get option index for AirPods Pro (has Transparency, Adaptive, Noise Cancellation)
-on getProOptionIndex(Opt)
-	if Opt is equal to "Transparency" then
-		return 1
-	else if Opt is equal to "Adaptive" then
-		return 2
-	else if Opt is equal to "Noise Cancellation" then
-		return 3
-	else
-		return 1
-	end if
-end getProOptionIndex
-
--- Calculate indices based on user preferences and AirPods type
-if ToggleOption is "noise-control"
-	set OptionOne to "${optionOne}"
-	set OptionTwo to "${optionTwo}"
-
-	if isAirPodsMax then
-		-- Validate that Adaptive is not selected for AirPods Max
-		if OptionOne is equal to "Adaptive" or OptionTwo is equal to "Adaptive" then
-			return "adaptive-not-supported-on-max"
-		end if
-		set IndexOne to AirPodsIndex + getMaxOptionIndex(OptionOne)
-		set IndexTwo to AirPodsIndex + getMaxOptionIndex(OptionTwo)
-	else
-		set IndexOne to AirPodsIndex + getProOptionIndex(OptionOne)
-		set IndexTwo to AirPodsIndex + getProOptionIndex(OptionTwo)
-	end if
-else
-	-- Conversation Awareness (Pro only)
-	if isAirPodsMax then
-		return "conversation-awareness-not-supported"
-	end if
-	set OptionOne to "Off"
-	set OptionTwo to "On"
-	-- CA Off at +4, CA On at +5 (after the 3 listening mode options)
-	set IndexOne to AirPodsIndex + 4
-	set IndexTwo to AirPodsIndex + 5
-end if
-
-tell application "System Events"
-	tell application process "SystemUIServer"
-		try
-			set output to "🔴 No Change"
-			set menuBar to (first menu bar item whose description is "${soundLoc}") of menu bar 1
-			tell menuBar to click
-			delay 0.1
-			set soundMenu to menu 1 of menuBar
-			set menuElements to entire contents of soundMenu
-			set btCheckbox to (checkbox AirPodsIndex of soundMenu)
-			set btCheckboxValue to value of btCheckbox as boolean
-
-			if btCheckboxValue is true then
-				repeat with i from 1 to length of menuElements
-					set currentItem to item i of menuElements
-					if currentItem is equal to btCheckbox then
-						set givenIndex to i
-						exit repeat
-					end if
-				end repeat
-
-				set expandToggle to item (i - 1) of menuElements
-				set expandToggleExpanded to value of expandToggle as boolean
-				if expandToggleExpanded is false then
-					click expandToggle
-					delay 0.1
-				end if
-
-				set currentMode to value of checkbox IndexOne of soundMenu as boolean
-				if currentMode is true then
-					click checkbox IndexTwo of soundMenu
-					set output to "🟢 " & OptionTwo
-				else
-					click checkbox IndexOne of soundMenu
-					set output to "🔵 " & OptionOne
-				end if
-			else
-				tell menuBar to click
-				return "airpods-not-connected"
-			end if
-
-			tell menuBar to click
-			return output
-		on error errMsg
-			try
-				tell menuBar to click
-			end try
-			return "sound-menu-not-found"
-		end try
-	end tell
-end tell
-  `;
-
-  const script = useControlCenter ? controlCenterScript : legacyScript;
 
   try {
     const result = await runAppleScript<string>(script);
@@ -325,27 +205,13 @@ end tell
     switch (result) {
       case "sound-menu-not-found": {
         await showFailureToast("", {
-          title: "Sound menu not found. Check Localization!",
+          title: "Could not open the Control Center Sound panel",
         });
 
         return null;
       }
       case "airpods-not-connected": {
         await showFailureToast("", { title: "AirPods not connected!" });
-
-        return null;
-      }
-      case "conversation-awareness-not-supported": {
-        await showFailureToast("", {
-          title: "Conversation Awareness not supported on AirPods Max",
-        });
-
-        return null;
-      }
-      case "adaptive-not-supported-on-max": {
-        await showFailureToast("", {
-          title: "Adaptive mode not available on AirPods Max",
-        });
 
         return null;
       }
